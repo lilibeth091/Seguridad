@@ -1,5 +1,7 @@
 import { lazy } from 'react';
 import SecurityManagement from '../pages/SecurityManagement';
+import UsersManagement from '../pages/UsersManagement';
+import ThemeDemo from '../pages/ThemeDemo';
 
 
 const ListRoles= lazy(() => import('../pages/Roles/RolesList'));
@@ -19,9 +21,19 @@ const UpdateUser = lazy(() => import('../pages/Users/Update'));
 
 const coreRoutes = [
   {
+    path: '/theme-demo',
+    title: 'Theme Demo',
+    component: ThemeDemo,
+  },
+  {
     path: '/demo',
     title: 'Demo',
     component: Demo,
+  },
+  {
+    path: '/users/management',
+    title: 'Users Management',
+    component: UsersManagement,
   },
   {
     path: '/users/list',

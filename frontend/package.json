@@ -16,6 +16,10 @@
   "dependencies": {
     "@azure/msal-browser": "^4.25.1",
     "@azure/msal-react": "^3.0.20",
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.6",
+    "@mui/material": "^7.3.6",
     "@reduxjs/toolkit": "^2.5.1",
     "apexcharts": "^3.41.0",
     "axios": "^1.13.1",
@@ -28,6 +32,7 @@
     "match-sorter": "^6.3.1",
     "react": "^18.3.1",
     "react-apexcharts": "^1.4.1",
+    "react-bootstrap": "^2.10.10",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
     "react-icons": "^4.10.1",

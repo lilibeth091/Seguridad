@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Header from '../components/Header';
 import Sidebar from '../components/Sidebar';
+import ThemeSelector from '../components/ThemeSelector';
 import { Outlet } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { store } from '../store/store';
@@ -22,6 +23,10 @@ const DefaultLayout = () => {
             {/* <!-- ===== Header Start ===== --> */}
             <Header sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
             {/* <!-- ===== Header End ===== --> */}
+
+            {/* <!-- ===== Theme Selector Start ===== --> */}
+            <ThemeSelector />
+            {/* <!-- ===== Theme Selector End ===== --> */}
 
             {/* <!-- ===== Main Content Start ===== --> */}
             <main>
