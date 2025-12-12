@@ -2,52 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Plus, X, Check, Shield, Key, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useSearchParams } from 'react-router-dom';
-
-const API_BASE_URL = 'http://127.0.0.1:5000/api';
-
-// Tipos de datos
-interface Role {
-  id: number;
-  name: string;
-  description: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface Permission {
-  id: number;
-  url: string;
-  method: string;
-  entity: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface UserRole {
-  id: string;
-  user_id: number;
-  role_id: number;
-  startAt: string;
-  endAt: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface RolePermission {
-  id: string;
-  role_id: number;
-  permission_id: number;
-  created_at: string;
-  updated_at: string;
-}
+import { Role, Permission, UserRole, RolePermission } from '../models';
+import { User } from '../models/User';
+import {
+  roleService,
+  permissionService,
+  userRoleService,
+  rolePermissionService,
+  userService
+} from '../services';
 
 // Componente principal
 const SecurityCRUDSystem: React.FC = () => {
@@ -169,12 +132,8 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
   const fetchRoles = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/roles/`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setRoles(Array.isArray(data) ? data : []);
+      const data = await roleService.getRoles();
+      setRoles(data);
     } catch (error: any) {
       console.error('Error fetching roles:', error);
       toast.error('Error al cargar los roles');
@@ -190,25 +149,15 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
 
     try {
       setSubmitting(true);
-      const url = editingRole
-        ? `${API_BASE_URL}/roles/${editingRole.id}`
-        : `${API_BASE_URL}/roles/`;
-      const method = editingRole ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al guardar el rol');
+      if (editingRole) {
+        await roleService.updateRole(editingRole.id, formData);
+        toast.success('Rol actualizado exitosamente');
+      } else {
+        await roleService.createRole(formData);
+        toast.success('Rol creado exitosamente');
       }
-
       await fetchRoles();
       closeModal();
-      toast.success(editingRole ? 'Rol actualizado exitosamente' : 'Rol creado exitosamente');
     } catch (error: any) {
       console.error('Error saving role:', error);
       toast.error(error.message || 'Error al guardar el rol');
@@ -221,13 +170,7 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
     if (!window.confirm('¿Está seguro de eliminar este rol?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/roles/${id}`, { method: 'DELETE' });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al eliminar el rol');
-      }
-
+      await roleService.deleteRole(id);
       await fetchRoles();
       toast.success('Rol eliminado exitosamente');
     } catch (error: any) {
@@ -266,16 +209,10 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
         </div>
         <button
           onClick={() => openModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-xl font-semibold text-sm border-2 border-green-700 flex-shrink-0"
-          style={{
-            backgroundColor: '#15803d',
-            color: '#FFFFFF',
-            zIndex: 9999,
-            position: 'relative',
-            minWidth: '140px'
-          }}
+          className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-all shadow-lg font-semibold text-sm"
+          style={{ backgroundColor: '#15803d', color: '#FFFFFF' }}
         >
-          <Plus className="w-4 h-4 font-bold" />
+          <Plus className="w-5 h-5" />
           <span>Nuevo Rol</span>
         </button>
       </div>
@@ -310,25 +247,10 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
                         style={{
                           backgroundColor: '#16a34a',
                           color: '#FFFFFF',
-                          zIndex: 10,
-                          position: 'relative',
                           minWidth: '55px'
                         }}
                       >
                         VER
-                      </button>
-                      <button
-                        onClick={() => onViewPermissions(role.id)}
-                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-xs font-semibold"
-                        style={{
-                          backgroundColor: '#9333ea',
-                          color: '#FFFFFF',
-                          zIndex: 10,
-                          position: 'relative',
-                          minWidth: '100px'
-                        }}
-                      >
-                        PERMISSIONS
                       </button>
                       <button
                         onClick={() => openModal(role)}
@@ -336,8 +258,6 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
                         style={{
                           backgroundColor: '#2563eb',
                           color: '#FFFFFF',
-                          zIndex: 10,
-                          position: 'relative',
                           minWidth: '70px'
                         }}
                       >
@@ -349,12 +269,21 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
                         style={{
                           backgroundColor: '#dc2626',
                           color: '#FFFFFF',
-                          zIndex: 10,
-                          position: 'relative',
                           minWidth: '80px'
                         }}
                       >
                         ELIMINAR
+                      </button>
+                      <button
+                        onClick={() => onViewPermissions(role.id)}
+                        className="px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 transition-colors text-xs font-semibold"
+                        style={{
+                          backgroundColor: '#9333ea',
+                          color: '#FFFFFF',
+                          minWidth: '85px'
+                        }}
+                      >
+                        PERMISOS
                       </button>
                     </div>
                   </td>
@@ -398,12 +327,6 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
                 type="button"
                 onClick={closeModal}
                 className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                style={{
-                  backgroundColor: '#6b7280',
-                  color: '#FFFFFF',
-                  zIndex: 9999,
-                  position: 'relative'
-                }}
                 disabled={submitting}
               >
                 CANCELAR
@@ -412,12 +335,6 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
                 type="submit"
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: '#2563eb',
-                  color: '#FFFFFF',
-                  zIndex: 9999,
-                  position: 'relative'
-                }}
               >
                 {submitting ? 'Guardando...' : 'ACEPTAR'}
               </button>
@@ -445,12 +362,8 @@ const PermissionsCRUD: React.FC = () => {
   const fetchPermissions = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_BASE_URL}/permissions/`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setPermissions(Array.isArray(data) ? data : []);
+      const data = await permissionService.getPermissions();
+      setPermissions(data);
     } catch (error: any) {
       console.error('Error fetching permissions:', error);
       toast.error('Error al cargar los permisos');
@@ -466,25 +379,15 @@ const PermissionsCRUD: React.FC = () => {
 
     try {
       setSubmitting(true);
-      const url = editingPermission
-        ? `${API_BASE_URL}/permissions/${editingPermission.id}`
-        : `${API_BASE_URL}/permissions/`;
-      const method = editingPermission ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al guardar el permiso');
+      if (editingPermission) {
+        await permissionService.updatePermission(editingPermission.id, formData);
+        toast.success('Permiso actualizado exitosamente');
+      } else {
+        await permissionService.createPermission(formData);
+        toast.success('Permiso creado exitosamente');
       }
-
       await fetchPermissions();
       closeModal();
-      toast.success(editingPermission ? 'Permiso actualizado exitosamente' : 'Permiso creado exitosamente');
     } catch (error: any) {
       console.error('Error saving permission:', error);
       toast.error(error.message || 'Error al guardar el permiso');
@@ -497,13 +400,7 @@ const PermissionsCRUD: React.FC = () => {
     if (!window.confirm('¿Está seguro de eliminar este permiso?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/permissions/${id}`, { method: 'DELETE' });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al eliminar el permiso');
-      }
-
+      await permissionService.deletePermission(id);
       await fetchPermissions();
       toast.success('Permiso eliminado exitosamente');
     } catch (error: any) {
@@ -546,16 +443,10 @@ const PermissionsCRUD: React.FC = () => {
         </div>
         <button
           onClick={() => openModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-xl font-semibold text-sm border-2 border-green-700 flex-shrink-0"
-          style={{
-            backgroundColor: '#15803d',
-            color: '#FFFFFF',
-            zIndex: 9999,
-            position: 'relative',
-            minWidth: '160px'
-          }}
+          className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-all shadow-lg font-semibold text-sm"
+          style={{ backgroundColor: '#15803d', color: '#FFFFFF' }}
         >
-          <Plus className="w-4 h-4 font-bold" />
+          <Plus className="w-5 h-5" />
           <span>Nuevo Permiso</span>
         </button>
       </div>
@@ -597,8 +488,6 @@ const PermissionsCRUD: React.FC = () => {
                         style={{
                           backgroundColor: '#2563eb',
                           color: '#FFFFFF',
-                          zIndex: 10,
-                          position: 'relative',
                           minWidth: '70px'
                         }}
                       >
@@ -610,8 +499,6 @@ const PermissionsCRUD: React.FC = () => {
                         style={{
                           backgroundColor: '#dc2626',
                           color: '#FFFFFF',
-                          zIndex: 10,
-                          position: 'relative',
                           minWidth: '80px'
                         }}
                       >
@@ -680,12 +567,6 @@ const PermissionsCRUD: React.FC = () => {
                 type="button"
                 onClick={closeModal}
                 className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                style={{
-                  backgroundColor: '#6b7280',
-                  color: '#FFFFFF',
-                  zIndex: 9999,
-                  position: 'relative'
-                }}
                 disabled={submitting}
               >
                 CANCELAR
@@ -694,12 +575,6 @@ const PermissionsCRUD: React.FC = () => {
                 type="submit"
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: '#2563eb',
-                  color: '#FFFFFF',
-                  zIndex: 9999,
-                  position: 'relative'
-                }}
               >
                 {submitting ? 'Guardando...' : 'ACEPTAR'}
               </button>
@@ -742,23 +617,15 @@ const UserRolesCRUD: React.FC<UserRolesCRUDProps> = ({ filterRoleId }) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [userRolesRes, usersRes, rolesRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/user-roles/`),
-        fetch(`${API_BASE_URL}/users/`),
-        fetch(`${API_BASE_URL}/roles/`),
+      const [userRolesData, usersData, rolesData] = await Promise.all([
+        userRoleService.getUserRoles(),
+        userService.getUsers(),
+        roleService.getRoles(),
       ]);
 
-      if (!userRolesRes.ok || !usersRes.ok || !rolesRes.ok) {
-        throw new Error('Error al cargar los datos');
-      }
-
-      const userRolesData = await userRolesRes.json();
-      const usersData = await usersRes.json();
-      const rolesData = await rolesRes.json();
-
-      setUserRoles(Array.isArray(userRolesData) ? userRolesData : []);
-      setUsers(Array.isArray(usersData) ? usersData : []);
-      setRoles(Array.isArray(rolesData) ? rolesData : []);
+      setUserRoles(userRolesData);
+      setUsers(usersData);
+      setRoles(rolesData);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast.error('Error al cargar los datos');
@@ -776,23 +643,14 @@ const UserRolesCRUD: React.FC<UserRolesCRUDProps> = ({ filterRoleId }) => {
 
     try {
       setSubmitting(true);
-      const response = await fetch(
-        `${API_BASE_URL}/user-roles/user/${formData.user_id}/role/${formData.role_id}`,
+      await userRoleService.createUserRole(
+        parseInt(formData.user_id),
+        parseInt(formData.role_id),
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            startAt: formData.startAt,
-            endAt: formData.endAt,
-          }),
+          startAt: formData.startAt,
+          endAt: formData.endAt,
         }
       );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al crear la asignación');
-      }
-
       await fetchData();
       closeModal();
       toast.success('Asignación creada exitosamente');
@@ -804,17 +662,11 @@ const UserRolesCRUD: React.FC<UserRolesCRUDProps> = ({ filterRoleId }) => {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (userId: number, roleId: number) => {
     if (!window.confirm('¿Está seguro de eliminar esta asignación?')) return;
 
     try {
-      const response = await fetch(`${API_BASE_URL}/user-roles/${id}`, { method: 'DELETE' });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al eliminar la asignación');
-      }
-
+      await userRoleService.deleteUserRole(userId, roleId);
       await fetchData();
       toast.success('Asignación eliminada exitosamente');
     } catch (error: any) {
@@ -869,16 +721,10 @@ const UserRolesCRUD: React.FC<UserRolesCRUDProps> = ({ filterRoleId }) => {
         </div>
         <button
           onClick={openModal}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-xl font-semibold text-sm border-2 border-green-700 flex-shrink-0"
-          style={{
-            backgroundColor: '#15803d',
-            color: '#FFFFFF',
-            zIndex: 9999,
-            position: 'relative',
-            minWidth: '170px'
-          }}
+          className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-all shadow-lg font-semibold text-sm"
+          style={{ backgroundColor: '#15803d', color: '#FFFFFF' }}
         >
-          <Plus className="w-4 h-4 font-bold" />
+          <Plus className="w-5 h-5" />
           <span>Nueva Asignación</span>
         </button>
       </div>
@@ -935,13 +781,11 @@ const UserRolesCRUD: React.FC<UserRolesCRUDProps> = ({ filterRoleId }) => {
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <button
-                      onClick={() => handleDelete(userRole.id)}
+                      onClick={() => handleDelete(userRole.user_id, userRole.role_id)}
                       className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs font-semibold"
                       style={{
                         backgroundColor: '#dc2626',
                         color: '#FFFFFF',
-                        zIndex: 10,
-                        position: 'relative',
                         minWidth: '80px'
                       }}
                     >
@@ -1027,12 +871,6 @@ const UserRolesCRUD: React.FC<UserRolesCRUDProps> = ({ filterRoleId }) => {
                 type="button"
                 onClick={closeModal}
                 className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                style={{
-                  backgroundColor: '#6b7280',
-                  color: '#FFFFFF',
-                  zIndex: 9999,
-                  position: 'relative'
-                }}
                 disabled={submitting}
               >
                 CANCELAR
@@ -1041,12 +879,6 @@ const UserRolesCRUD: React.FC<UserRolesCRUDProps> = ({ filterRoleId }) => {
                 type="submit"
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: '#2563eb',
-                  color: '#FFFFFF',
-                  zIndex: 9999,
-                  position: 'relative'
-                }}
               >
                 {submitting ? 'Creando...' : 'ACEPTAR'}
               </button>
@@ -1079,23 +911,15 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [rolePermissionsRes, rolesRes, permissionsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/role-permissions/`),
-        fetch(`${API_BASE_URL}/roles/`),
-        fetch(`${API_BASE_URL}/permissions/`),
+      const [rolePermissionsData, rolesData, permissionsData] = await Promise.all([
+        rolePermissionService.getRolePermissions(),
+        roleService.getRoles(),
+        permissionService.getPermissions(),
       ]);
 
-      if (!rolePermissionsRes.ok || !rolesRes.ok || !permissionsRes.ok) {
-        throw new Error('Error al cargar los datos');
-      }
-
-      const rolePermissionsData = await rolePermissionsRes.json();
-      const rolesData = await rolesRes.json();
-      const permissionsData = await permissionsRes.json();
-
-      setRolePermissions(Array.isArray(rolePermissionsData) ? rolePermissionsData : []);
-      setRoles(Array.isArray(rolesData) ? rolesData : []);
-      setPermissions(Array.isArray(permissionsData) ? permissionsData : []);
+      setRolePermissions(rolePermissionsData);
+      setRoles(rolesData);
+      setPermissions(permissionsData);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast.error('Error al cargar los datos');
@@ -1110,20 +934,10 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
 
     try {
       setSubmitting(true);
-      const response = await fetch(
-        `${API_BASE_URL}/role-permissions/role/${formData.role_id}/permission/${formData.permission_id}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
-        }
+      await rolePermissionService.createRolePermission(
+        parseInt(formData.role_id),
+        parseInt(formData.permission_id)
       );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al crear la asignación');
-      }
-
       await fetchData();
       closeModal();
       toast.success('Asignación creada exitosamente');
@@ -1139,18 +953,7 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
     if (!window.confirm('¿Está seguro de eliminar esta asignación?')) return;
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/role-permissions/role/${roleId}/permission/${permissionId}`,
-        {
-          method: 'DELETE',
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Error al eliminar la asignación');
-      }
-
+      await rolePermissionService.deleteRolePermission(roleId, permissionId);
       await fetchData();
       toast.success('Asignación eliminada exitosamente');
     } catch (error: any) {
@@ -1186,26 +989,14 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
     try {
       if (currentlyHas) {
         // Eliminar permiso
-        await handleDelete(roleId, permissionId);
+        await rolePermissionService.deleteRolePermission(roleId, permissionId);
+        toast.success('Permiso eliminado exitosamente');
       } else {
         // Agregar permiso
-        const response = await fetch(
-          `${API_BASE_URL}/role-permissions/role/${roleId}/permission/${permissionId}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({}),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Error al asignar el permiso');
-        }
-
-        await fetchData();
+        await rolePermissionService.createRolePermission(roleId, permissionId);
         toast.success('Permiso asignado exitosamente');
       }
+      await fetchData();
     } catch (error: any) {
       console.error('Error toggling permission:', error);
       toast.error(error.message || 'Error al modificar el permiso');
@@ -1220,7 +1011,7 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
     );
   }
 
-  // Vista de matriz cuando hay filterRoleId
+  // Vista de permisos del rol cuando hay filterRoleId
   if (filterRoleId) {
     const roleId = parseInt(filterRoleId);
     const role = roles.find(r => r.id === roleId);
@@ -1233,120 +1024,74 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
       );
     }
 
-    // Agrupar permisos por entidad
-    const entitiesList = Array.from(new Set(permissions.map(p => p.entity))).sort();
-
-    // Mapeo de métodos a acciones
-    const methodActions: { [key: string]: string } = {
-      'GET': 'View',
-      'POST': 'Create',
-      'PUT': 'Update',
-      'DELETE': 'Delete'
-    };
-
     return (
       <div>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 pb-4 border-b border-gray-200">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">
-              {role.name} - Permisos
+              Permisos del Rol {roleId}
             </h2>
-            <p className="text-sm text-gray-500 mt-1">
-              Administra los permisos del rol seleccionado
-            </p>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => window.history.back()}
+              className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-sm"
+            >
+              Volver
+            </button>
           </div>
         </div>
 
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <table className="w-full">
-            <thead className="bg-gradient-to-r from-purple-50 to-indigo-50 border-b-2 border-purple-200">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">
-                  Modelo
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                  Entidad
                 </th>
-                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                  View
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                  Ruta
                 </th>
-                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                  Create
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-700">
+                  Método
                 </th>
-                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                  Update
-                </th>
-                <th className="px-4 py-4 text-center text-sm font-bold text-gray-700 uppercase tracking-wider">
-                  Delete
+                <th className="px-6 py-3 text-center text-sm font-semibold text-gray-700">
+                  Activo
                 </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {entitiesList.map((entity) => {
-                // Obtener permisos de esta entidad
-                const entityPermissions = permissions.filter(p => p.entity === entity);
-
-                // Encontrar el permiso para cada método
-                const viewPerm = entityPermissions.find(p => p.method === 'GET');
-                const createPerm = entityPermissions.find(p => p.method === 'POST');
-                const updatePerm = entityPermissions.find(p => p.method === 'PUT');
-                const deletePerm = entityPermissions.find(p => p.method === 'DELETE');
-
-                return (
-                  <tr key={entity} className="hover:bg-purple-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900">
-                      <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-lg text-xs font-bold">
-                        {entity}
+              {permissions.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-8 text-center text-gray-500">
+                    No hay permisos disponibles
+                  </td>
+                </tr>
+              ) : (
+                permissions.map((permission) => (
+                  <tr key={permission.id} className="hover:bg-gray-50 transition-colors">
+                    <td className="px-6 py-4 text-sm text-gray-900">
+                      {permission.entity}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-900 font-mono">
+                      {permission.url}
+                    </td>
+                    <td className="px-6 py-4 text-sm">
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${getMethodColor(permission.method)}`}>
+                        {permission.method}
                       </span>
                     </td>
-                    <td className="px-4 py-4 text-center">
-                      {viewPerm ? (
-                        <input
-                          type="checkbox"
-                          checked={hasPermission(roleId, viewPerm.id)}
-                          onChange={() => togglePermission(roleId, viewPerm.id, hasPermission(roleId, viewPerm.id))}
-                          className="w-5 h-5 text-green-600 bg-gray-100 border-gray-300 rounded focus:ring-green-500 focus:ring-2 cursor-pointer"
-                        />
-                      ) : (
-                        <span className="text-gray-300">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      {createPerm ? (
-                        <input
-                          type="checkbox"
-                          checked={hasPermission(roleId, createPerm.id)}
-                          onChange={() => togglePermission(roleId, createPerm.id, hasPermission(roleId, createPerm.id))}
-                          className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-                        />
-                      ) : (
-                        <span className="text-gray-300">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      {updatePerm ? (
-                        <input
-                          type="checkbox"
-                          checked={hasPermission(roleId, updatePerm.id)}
-                          onChange={() => togglePermission(roleId, updatePerm.id, hasPermission(roleId, updatePerm.id))}
-                          className="w-5 h-5 text-yellow-600 bg-gray-100 border-gray-300 rounded focus:ring-yellow-500 focus:ring-2 cursor-pointer"
-                        />
-                      ) : (
-                        <span className="text-gray-300">-</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      {deletePerm ? (
-                        <input
-                          type="checkbox"
-                          checked={hasPermission(roleId, deletePerm.id)}
-                          onChange={() => togglePermission(roleId, deletePerm.id, hasPermission(roleId, deletePerm.id))}
-                          className="w-5 h-5 text-red-600 bg-gray-100 border-gray-300 rounded focus:ring-red-500 focus:ring-2 cursor-pointer"
-                        />
-                      ) : (
-                        <span className="text-gray-300">-</span>
-                      )}
+                    <td className="px-6 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={hasPermission(roleId, permission.id)}
+                        onChange={() => togglePermission(roleId, permission.id, hasPermission(roleId, permission.id))}
+                        className="w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+                      />
                     </td>
                   </tr>
-                );
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -1364,16 +1109,10 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
         </div>
         <button
           onClick={openModal}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all shadow-lg hover:shadow-xl font-semibold text-sm border-2 border-green-700 flex-shrink-0"
-          style={{
-            backgroundColor: '#15803d',
-            color: '#FFFFFF',
-            zIndex: 9999,
-            position: 'relative',
-            minWidth: '170px'
-          }}
+          className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-all shadow-lg font-semibold text-sm"
+          style={{ backgroundColor: '#15803d', color: '#FFFFFF' }}
         >
-          <Plus className="w-4 h-4 font-bold" />
+          <Plus className="w-5 h-5" />
           <span>Nueva Asignación</span>
         </button>
       </div>
@@ -1410,8 +1149,6 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
                       style={{
                         backgroundColor: '#dc2626',
                         color: '#FFFFFF',
-                        zIndex: 10,
-                        position: 'relative',
                         minWidth: '80px'
                       }}
                     >
@@ -1471,12 +1208,6 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
                 type="button"
                 onClick={closeModal}
                 className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                style={{
-                  backgroundColor: '#6b7280',
-                  color: '#FFFFFF',
-                  zIndex: 9999,
-                  position: 'relative'
-                }}
                 disabled={submitting}
               >
                 CANCELAR
@@ -1485,12 +1216,6 @@ const RolePermissionsCRUD: React.FC<RolePermissionsCRUDProps> = ({ filterRoleId 
                 type="submit"
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: '#2563eb',
-                  color: '#FFFFFF',
-                  zIndex: 9999,
-                  position: 'relative'
-                }}
               >
                 {submitting ? 'Creando...' : 'ACEPTAR'}
               </button>

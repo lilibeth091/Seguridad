@@ -1,16 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
-
-const API_URL = 'http://127.0.0.1:5000/api';
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  created_at: string;
-  updated_at: string;
-}
+import { User } from '../models/User';
+import { userService } from '../services/userService';
 
 const UsersManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
@@ -26,9 +18,7 @@ const UsersManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${API_URL}/users/`);
-      if (!response.ok) throw new Error('Error al cargar usuarios');
-      const data = await response.json();
+      const data = await userService.getUsers();
       setUsers(data);
     } catch (error) {
       toast.error('Error al cargar los usuarios');
@@ -84,26 +74,14 @@ const UsersManagement: React.FC = () => {
     }
 
     try {
-      const url = editingUser
-        ? `${API_URL}/users/${editingUser.id}`
-        : `${API_URL}/users/`;
-
-      const method = editingUser ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Error al guardar');
+      if (editingUser) {
+        await userService.updateUser(editingUser.id!, formData);
+        toast.success('Usuario actualizado');
+      } else {
+        await userService.createUser(formData);
+        toast.success('Usuario creado');
       }
 
-      toast.success(editingUser ? 'Usuario actualizado' : 'Usuario creado');
       fetchUsers();
       closeModal();
     } catch (error: any) {
@@ -118,12 +96,7 @@ const UsersManagement: React.FC = () => {
     }
 
     try {
-      const response = await fetch(`${API_URL}/users/${id}`, {
-        method: 'DELETE',
-      });
-
-      if (!response.ok) throw new Error('Error al eliminar');
-
+      await userService.deleteUser(id);
       toast.success('Usuario eliminado exitosamente');
       fetchUsers();
     } catch (error) {
@@ -152,13 +125,8 @@ const UsersManagement: React.FC = () => {
         </div>
         <button
           onClick={() => openModal()}
-          className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-all shadow-lg font-semibold text-sm border-2 border-green-800"
-          style={{
-            backgroundColor: '#15803d',
-            color: '#FFFFFF',
-            zIndex: 9999,
-            position: 'relative'
-          }}
+          className="flex items-center gap-2 px-4 py-2 bg-green-700 text-white rounded-lg hover:bg-green-800 transition-all shadow-lg font-semibold text-sm"
+          style={{ backgroundColor: '#15803d', color: '#FFFFFF' }}
         >
           <Plus className="w-5 h-5" />
           <span>Nuevo Usuario</span>
@@ -192,31 +160,21 @@ const UsersManagement: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(user.created_at).toLocaleDateString('es-ES')}
+                      {user.created_at ? new Date(user.created_at).toLocaleDateString('es-ES') : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
                         <button
                           onClick={() => openModal(user)}
                           className="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs font-semibold"
-                          style={{
-                            backgroundColor: '#2563eb',
-                            color: '#FFFFFF',
-                            zIndex: 9999,
-                            position: 'relative'
-                          }}
+                          style={{ backgroundColor: '#2563eb', color: '#FFFFFF' }}
                         >
                           EDITAR
                         </button>
                         <button
-                          onClick={() => handleDelete(user.id)}
+                          onClick={() => handleDelete(user.id!)}
                           className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs font-semibold"
-                          style={{
-                            backgroundColor: '#dc2626',
-                            color: '#FFFFFF',
-                            zIndex: 9999,
-                            position: 'relative'
-                          }}
+                          style={{ backgroundColor: '#dc2626', color: '#FFFFFF' }}
                         >
                           ELIMINAR
                         </button>
@@ -280,26 +238,16 @@ const UsersManagement: React.FC = () => {
                   type="button"
                   onClick={closeModal}
                   className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                  style={{
-                    backgroundColor: '#6b7280',
-                    color: '#FFFFFF',
-                    zIndex: 9999,
-                    position: 'relative'
-                  }}
+                  style={{ backgroundColor: '#6b7280', color: '#FFFFFF' }}
                 >
                   CANCELAR
                 </button>
                 <button
                   type="submit"
                   className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  style={{
-                    backgroundColor: '#2563eb',
-                    color: '#FFFFFF',
-                    zIndex: 9999,
-                    position: 'relative'
-                  }}
+                  style={{ backgroundColor: '#2563eb', color: '#FFFFFF' }}
                 >
-                  {editingUser ? 'ACEPTAR' : 'ACEPTAR'}
+                  {editingUser ? 'ACTUALIZAR' : 'CREAR'}
                 </button>
               </div>
             </form>
