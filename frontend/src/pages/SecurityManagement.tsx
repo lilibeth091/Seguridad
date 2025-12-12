@@ -327,6 +327,7 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
                 type="button"
                 onClick={closeModal}
                 className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                style={{ backgroundColor: '#6b7280', color: '#FFFFFF' }}
                 disabled={submitting}
               >
                 CANCELAR
@@ -335,6 +336,7 @@ const RolesCRUD: React.FC<RolesCRUDProps> = ({ onViewUsers, onViewPermissions })
                 type="submit"
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#2563eb', color: '#FFFFFF' }}
               >
                 {submitting ? 'Guardando...' : 'ACEPTAR'}
               </button>
@@ -567,6 +569,7 @@ const PermissionsCRUD: React.FC = () => {
                 type="button"
                 onClick={closeModal}
                 className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                style={{ backgroundColor: '#6b7280', color: '#FFFFFF' }}
                 disabled={submitting}
               >
                 CANCELAR
@@ -575,6 +578,7 @@ const PermissionsCRUD: React.FC = () => {
                 type="submit"
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: '#2563eb', color: '#FFFFFF' }}
               >
                 {submitting ? 'Guardando...' : 'ACEPTAR'}
               </button>
@@ -1236,8 +1240,8 @@ interface ModalProps {
 
 const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => (
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto">
-      <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white z-10">
+    <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
+      <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white rounded-t-lg flex-shrink-0">
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
         <button
           onClick={onClose}
@@ -1247,7 +1251,7 @@ const Modal: React.FC<ModalProps> = ({ title, onClose, children }) => (
           <X className="w-5 h-5" />
         </button>
       </div>
-      <div className="p-6">{children}</div>
+      <div className="overflow-y-auto flex-1 p-6">{children}</div>
     </div>
   </div>
 );

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { User } from '../models/User';
 import { userService } from '../services/userService';
 
@@ -36,8 +36,8 @@ const UsersManagement: React.FC = () => {
     if (user) {
       setEditingUser(user);
       setFormData({
-        name: user.name,
-        email: user.email,
+        name: user.name || '',
+        email: user.email || '',
       });
     } else {
       setEditingUser(null);
@@ -74,8 +74,9 @@ const UsersManagement: React.FC = () => {
     }
 
     try {
-      if (editingUser) {
-        await userService.updateUser(editingUser.id!, formData);
+      if (editingUser && editingUser.id) {
+        const userId = typeof editingUser.id === 'string' ? parseInt(editingUser.id) : editingUser.id;
+        await userService.updateUser(userId, formData);
         toast.success('Usuario actualizado');
       } else {
         await userService.createUser(formData);
@@ -160,7 +161,7 @@ const UsersManagement: React.FC = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{user.name}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{user.email}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {user.created_at ? new Date(user.created_at).toLocaleDateString('es-ES') : '-'}
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString('es-ES') : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
@@ -172,7 +173,12 @@ const UsersManagement: React.FC = () => {
                           EDITAR
                         </button>
                         <button
-                          onClick={() => handleDelete(user.id!)}
+                          onClick={() => {
+                            if (user.id) {
+                              const userId = typeof user.id === 'string' ? parseInt(user.id) : user.id;
+                              handleDelete(userId);
+                            }
+                          }}
                           className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs font-semibold"
                           style={{ backgroundColor: '#dc2626', color: '#FFFFFF' }}
                         >
@@ -191,66 +197,68 @@ const UsersManagement: React.FC = () => {
       {/* Modal para crear/editar */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex justify-between items-center p-6 border-b border-gray-200">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center p-6 border-b border-gray-200 bg-white rounded-t-lg flex-shrink-0">
               <h2 className="text-xl font-bold text-gray-900">
                 {editingUser ? 'Editar Usuario' : 'Nuevo Usuario'}
               </h2>
               <button
                 onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
+                className="text-gray-400 hover:text-gray-600 transition-colors p-1 hover:bg-gray-100 rounded-lg"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nombre <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="Nombre completo"
-                  required
-                />
-              </div>
+            <div className="overflow-y-auto flex-1 p-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nombre <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nombre completo"
+                    required
+                  />
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Correo <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  placeholder="usuario@ejemplo.com"
-                  required
-                />
-              </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Correo <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="usuario@ejemplo.com"
+                    required
+                  />
+                </div>
 
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={closeModal}
-                  className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
-                  style={{ backgroundColor: '#6b7280', color: '#FFFFFF' }}
-                >
-                  CANCELAR
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                  style={{ backgroundColor: '#2563eb', color: '#FFFFFF' }}
-                >
-                  {editingUser ? 'ACTUALIZAR' : 'CREAR'}
-                </button>
-              </div>
-            </form>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="flex-1 px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 transition-colors font-medium"
+                    style={{ backgroundColor: '#6b7280', color: '#FFFFFF' }}
+                  >
+                    CANCELAR
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    style={{ backgroundColor: '#2563eb', color: '#FFFFFF' }}
+                  >
+                    {editingUser ? 'ACTUALIZAR' : 'CREAR'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
